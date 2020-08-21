@@ -1,0 +1,29 @@
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Store hash:</strong>
+  <%= @store.store_hash %>
+</p>
+
+<p>
+  <strong>Access token:</strong>
+  <%= @store.access_token %>
+</p>
+
+<p>
+  <strong>Scope:</strong>
+  <%= @store.scope %>
+</p>
+
+<p>
+  <strong>Username:</strong>
+  <%= @store.username %>
+</p>
+
+<p>
+  <strong>Email:</strong>
+  <%= @store.email %>
+</p>
+
+<%= link_to 'Edit', edit_store_path(@store) %> |
+<%= link_to 'Back', stores_path %>
