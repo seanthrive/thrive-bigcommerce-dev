@@ -12,10 +12,7 @@
 
 ActiveRecord::Schema.define(version: 2020_08_21_193248) do
 
-  # These are extensions that must be enabled in order to support this database
-  enable_extension "plpgsql"
-
-  create_table "stores", force: :cascade do |t|
+  create_table "stores", options: "ENGINE=InnoDB DEFAULT CHARSET=utf8", force: :cascade do |t|
     t.string "store_hash"
     t.string "access_token"
     t.text "scope"
