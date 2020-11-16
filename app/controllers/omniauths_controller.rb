@@ -45,10 +45,11 @@ class OmniauthsController < ApplicationController
     redirect_to '/'
   end
 
-  def load
-    render plain: "This is the load route"
-  end
+  private 
 
-  def uninstall
+  def render_error(e)
+      logger.warn "ERROR: #{e}"
+      @error = e
+      erb :error
   end
 end
