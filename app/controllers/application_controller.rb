@@ -1,6 +1,49 @@
 class ApplicationController < ActionController::Base
     def app_interface 
-        render plain: "App Interface Route"
+
+        puts "[app interface] Starting..."
+
+        @user = current_user
+        @store = current_store
+        return render_error("Fuck. Can't find either the User or Store.") unless @user && @store
+
+        @bc_api_url = bc_api_url
+        @client_id = bc_client_id
+        # @products = JSON.pretty_generate(@store.bc_api.products)
+
+        puts "[app interface] API Request: Create Script Tag"
+
+        # This is where we are putting javascript on the pages.
+        # code taken from https://developer.bigcommerce.com/api-reference/storefront/content-scripts-api/scripts/createscript by selecting ruby.
+        url = URI("https://api.bigcommerce.com/stores/#{@store.store_hash}/v3/content/scripts")
+
+        http = Net::HTTP.new(url.host, url.port)
+        http.use_ssl = true
+        http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+
+        request = Net::HTTP::Post.new(url)
+        request["accept"] = 'application/json'
+        request["content-type"] = 'application/json'
+        request["x-auth-client"] = bc_client_id
+        request["x-auth-token"] = @store.access_token # My token is wrong! gotta get that from the store.
+        request.body = "{\"name\":\"Bootstrap\",
+            \"description\":\"Build responsive websites\",
+            \"html\":\"<script src=\\\\\\\"https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js\\\\\\\"></script>\",
+            \"auto_uninstall\":true,
+            \"load_method\":\"default\",
+            \"location\":\"footer\",
+            \"visibility\":\"all_pages\",
+            \"kind\":\"script_tag\",
+            \"consent_category\":\"essential\"}"
+        response = http.request(request)
+
+        # this works but is unauthorized because I am requesting the wrong scopes. 
+        # then we need to host a script somewhere, then we can post our tag and query cart. for now, bootstrap.
+
+        puts "[app interface] Printing API response:"
+        puts response.read_body
+
+        render :index
     end
 
     def load
@@ -35,7 +78,7 @@ class ApplicationController < ActionController::Base
     end
 
     def uninstall
-        render plain: "Uninstall Route"
+        render plain: "Uninstall App Route"
     end
 
     def remove_user
@@ -43,6 +86,20 @@ class ApplicationController < ActionController::Base
     end
 
     private 
+
+    # Gets the current user from session
+    def current_user
+        return nil unless session[:user_id]
+        User.find(session[:user_id])
+    end
+    
+    # Gets the current user's store from session
+    def current_store
+        user = current_user
+        return nil unless user
+        return nil unless session[:store_id]
+        user.stores.find(session[:store_id])
+    end
 
     # Verify given signed_payload string and return the data if valid.
     def parse_signed_payload
