@@ -27,12 +27,12 @@ class OmniauthsController < ApplicationController
       store = Store.create(store_hash: store_hash, access_token: token, scope: scope)
 
       # Create admin user and associate with store
-      # user = User.first_or_create(email: email)
-      # user.stores << store
-      # user.save
+      user = User.first_or_create(email: email)
+      user.stores << store
+      user.save
 
       # Set admin user in Store record
-      # store.admin_user_id = user.id
+      store.admin_user_id = user.id
       store.save
     end
 
@@ -40,7 +40,7 @@ class OmniauthsController < ApplicationController
 
     # Login and redirect to home page
     session[:store_id] = store.id
-    # session[:user_id] = user.id
+    session[:user_id] = user.id
 
     redirect_to '/'
   end
