@@ -28,7 +28,7 @@ class ApplicationController < ActionController::Base
         request["x-auth-token"] = @store.access_token # My token is wrong! gotta get that from the store.
         request.body = "{\"name\":\"Bootstrap\",
             \"description\":\"Build responsive websites\",
-            \"html\":\"<script src=\\\\\\\"https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js\\\\\\\"></script>\",
+            \"html\":\"<script src='//integrate.thrive.today/'></script>\",
             \"auto_uninstall\":true,
             \"load_method\":\"default\",
             \"location\":\"footer\",

@@ -20,7 +20,7 @@ class OmniauthsController < ApplicationController
       # Update store record
       puts "[auth callback] Updating token for store '#{store_hash}' with scope '#{scope}'"
       store.update(access_token: token, scope: scope)
-      user = store.admin_user
+      user = User.find(store.admin_user_id)
     else
       # Create store record
       puts "[auth callback] Installing app for store '#{store_hash}' and scope '#{scope}"
