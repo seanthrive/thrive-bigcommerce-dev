@@ -7,4 +7,7 @@ Rails.application.routes.draw do
   get '/load' => 'application#load'
   get '/uninstall' => 'application#uninstall'
   get '/remove' => 'application#remove_user'
+  
+  get '/tbc' => 'application#serve_js', xhr: true, format: :js
+  get '/gather' => 'application#gather_info', xhr: true
 end
