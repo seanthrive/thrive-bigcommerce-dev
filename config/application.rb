@@ -15,7 +15,7 @@ module ThriveBigcommerceDev
     config.load_defaults 6.0
 
     # Set tmp ngrok tunnel as host.
-    config.hosts << "d9acf68f20e4.ngrok.io"
+    config.hosts << "0959076784c4.ngrok.io"
 
     # Settings in config/environments/* take precedence over those specified here.
     # Application configuration can go into files in config/initializers

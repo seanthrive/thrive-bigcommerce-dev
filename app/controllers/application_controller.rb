@@ -93,41 +93,92 @@ var tracking_data = {
 };
 
 var cart_promise = function () {
+    tracking_data.minird_bigcommerce_cart.platform_query_start = Date.now();
     return new Promise((resolve, reject) => {
         window.stencilUtils.api.cart.getCart({}, (err, response) => {
-            console.log('B) CART id', response.id);
 
-            var num_items = Object.values(response.lineItems).reduce((total, itemTypeArray) => {
-                return total + itemTypeArray.length;
-            }, 0);
+            // Baseline cart data. 
+            tracking_data.minird_bigcommerce_cart.gte_class_name = "mini_rd_bigcommerce_cart";
+            tracking_data.minird_bigcommerce_cart.navigation_start = window.performance.timing.navigationStart;
+            tracking_data.minird_bigcommerce_cart.uie_run = thrive.performance.uieRun;
+            tracking_data.minird_bigcommerce_cart.platform_query_end =  Date.now();
 
-            tracking_data.minird_bigcommerce_cart.cart_amount = response.cartAmount;
-            tracking_data.minird_bigcommerce_cart.base_amount = response.baseAmount;
-            tracking_data.minird_bigcommerce_cart.discount_amount = response.discountAmount;
-            tracking_data.minird_bigcommerce_cart.line_items_length = num_items;
+            if (err) {
 
+                tracking_data.minird_bigcommerce_cart.error = true;
+                tracking_data.minird_bigcommerce_cart.error_message = err;
+
+            } else if (response) {
+
+                var num_items = Object.values(response.lineItems).reduce((total, itemTypeArray) => {
+                    return total + itemTypeArray.length;
+                }, 0);
+    
+                tracking_data.minird_bigcommerce_cart.cart_amount = response.cartAmount;
+                tracking_data.minird_bigcommerce_cart.base_amount = response.baseAmount;
+                tracking_data.minird_bigcommerce_cart.discount_amount = response.discountAmount;
+                tracking_data.minird_bigcommerce_cart.line_items_length = num_items;
+
+            } else {
+
+                tracking_data.minird_bigcommerce_cart.cart_amount = 0;
+                tracking_data.minird_bigcommerce_cart.base_amount = 0;
+                tracking_data.minird_bigcommerce_cart.discount_amount = 0;
+                tracking_data.minird_bigcommerce_cart.line_items_length = 0;
+
+            }
+
+            // Queue gte call. 
+            thrive.gte(tracking_data.minird_bigcommerce_cart['gte_class_name'], tracking_data.minird_bigcommerce_cart);
             resolve();
+
         });
     });
 };
 
 var customer_promise = function () {
+    tracking_data.minird_bigcommerce_customer.platform_query_start = Date.now();
     return new Promise((resolve, reject) => {
+
+        // Baseline customer data. 
+        tracking_data.minird_bigcommerce_customer.gte_class_name = "mini_rd_bigcommerce_customer";
+        tracking_data.minird_bigcommerce_customer.navigation_start = window.performance.timing.navigationStart;
+        tracking_data.minird_bigcommerce_customer.uie_run = thrive.performance.uieRun;
+
         // Customer JWT API Request
         var xmlhttp = new XMLHttpRequest();
         xmlhttp.onreadystatechange = function () {
             if (xmlhttp.readyState == 4) {
                 if (xmlhttp.status == 200) {
+                    // Customer is logged in. 
+
                     var decoded = atob(xmlhttp.responseText.split('.')[1]);
                     var jsonData = JSON.parse(decoded);
                     var user_id = jsonData.customer.id;
-                    console.log('C) CUSTOMER', user_id);
-                    tracking_data.minird_bigcommerce_customer.bool_id = user_id;
+
+                    tracking_data.minird_bigcommerce_customer.bool_id = true;
+                    tracking_data.minird_bigcommerce_customer.platform_query_end = Date.now();
+
+                    thrive.gte(tracking_data.minird_bigcommerce_customer['gte_class_name'], tracking_data.minird_bigcommerce_customer);
                     resolve(user_id);
+
                 } else if (xmlhttp.status == 404) {
-                    console.log('C) CUSTOMER', 'Not logged in!');
+                    // Customer is not logged in. 
+
+                    tracking_data.minird_bigcommerce_customer.bool_id = false;
+                    tracking_data.minird_bigcommerce_customer.platform_query_end = Date.now();
+
+                    thrive.gte(tracking_data.minird_bigcommerce_customer['gte_class_name'], tracking_data.minird_bigcommerce_customer);
+                    resolve(-1);
+
                 } else {
-                    console.log('C) CUSTOMER', 'Something went wrong!');
+
+                    tracking_data.minird_bigcommerce_customer.error = true;
+                    tracking_data.minird_bigcommerce_customer.error_message = 'Something went wrong!';
+                    tracking_data.minird_bigcommerce_customer.platform_query_end = Date.now();
+
+                    thrive.gte(tracking_data.minird_bigcommerce_customer['gte_class_name'], tracking_data.minird_bigcommerce_customer);
+                    resolve(-1);
                 }
             }
         }
@@ -137,44 +188,89 @@ var customer_promise = function () {
 };
 
 var gather_promise = function (user_id) {
+    tracking_data.minird_bigcommerce_all_orders.platform_query_start = Date.now();
+    tracking_data.minird_bigcommerce_last_order.platform_query_start = Date.now();
     return new Promise((resolve, reject) => {
-        // Gather data request to backend server.
-        var gather_req = new XMLHttpRequest();
-        gather_req.addEventListener("readystatechange", function () {
-            if (this.readyState === this.DONE) {
-                var gather_response = JSON.parse(this.responseText);
 
-                // All orders:
-                tracking_data.minird_bigcommerce_all_orders.size = gather_response.length;
-                tracking_data.minird_bigcommerce_all_orders.sum_total_inc_tax = gather_response.reduce((total, curr) => {
-                    return total + curr.total_inc_tax;
-                }, 0);
+        if (user_id < 0) {
+            // If there is no user, no use to request/send data. 
+            resolve();
+        } else {
+            // Gather data request to backend server.
+            var gather_req = new XMLHttpRequest();
+            gather_req.addEventListener("readystatechange", function () {
+                if (this.readyState === this.DONE) {
+                    if (this.status == 200) {
+                        var gather_response = JSON.parse(this.responseText);
 
-                // Most recent order
-                // Determine "most recent" by date_created or id. 
-                var most_recent_order = gather_response.sort((a, b) => {
-                    return a - b;
-                })[0];
-                tracking_data.minird_bigcommerce_last_order.total_inc_tax = most_recent_order.total_inc_tax;
-                tracking_data.minird_bigcommerce_last_order.discount_amount = most_recent_order.discount_amount;
-                tracking_data.minird_bigcommerce_last_order.created_at = most_recent_order.date_created;
-                
-                console.log("D)", tracking_data);
-            }
-        });
-        var gather_req_url = "#{host_url}/gather?sh=#{@store.store_hash}&at=#{@store.access_token}&cid=" + user_id;
-        gather_req.open("GET", gather_req_url);
-        gather_req.send();
+                        // ALL ORDERS
+                        tracking_data.minird_bigcommerce_all_orders.gte_class_name = "mini_rd_bigcommerce_all_orders";
+                        tracking_data.minird_bigcommerce_all_orders.navigation_start = window.performance.timing.navigationStart;
+                        tracking_data.minird_bigcommerce_all_orders.uie_run = thrive.performance.uieRun;
+                        tracking_data.minird_bigcommerce_all_orders.platform_query_end = Date.now();
+    
+                        tracking_data.minird_bigcommerce_all_orders.size = gather_response.length;
+                        tracking_data.minird_bigcommerce_all_orders.sum_total_inc_tax = gather_response.reduce((total, curr) => {
+                            return total + curr.total_inc_tax;
+                        }, 0);
+    
+                        thrive.gte(tracking_data.minird_bigcommerce_all_orders['gte_class_name'], tracking_data.minird_bigcommerce_all_orders);
+    
+                        // LAST ORDER
+                        tracking_data.minird_bigcommerce_last_order.gte_class_name = "mini_rd_bigcommerce_last_order";
+                        tracking_data.minird_bigcommerce_last_order.navigation_start = window.performance.timing.navigationStart;
+                        tracking_data.minird_bigcommerce_last_order.uie_run = thrive.performance.uieRun;
+        
+                        // Determine "most recent" by date_created or id. 
+                        var most_recent_order = gather_response.sort((a, b) => { return a - b; })[0];
+                        tracking_data.minird_bigcommerce_last_order.total_inc_tax = most_recent_order.total_inc_tax;
+                        tracking_data.minird_bigcommerce_last_order.discount_amount = most_recent_order.discount_amount;
+                        tracking_data.minird_bigcommerce_last_order.created_at = most_recent_order.date_created;
+                        tracking_data.minird_bigcommerce_last_order.platform_query_end = Date.now();
+    
+                        thrive.gte(tracking_data.minird_bigcommerce_last_order['gte_class_name'], tracking_data.minird_bigcommerce_last_order);
+    
+                        resolve();
+                    } else {
+
+                        tracking_data.minird_bigcommerce_all_orders.error = true;
+                        tracking_data.minird_bigcommerce_all_orders.error_message = "Something went wrong!";
+                        tracking_data.minird_bigcommerce_all_orders.platform_query_end = Date.now();
+                        thrive.gte(tracking_data.minird_bigcommerce_all_orders['gte_class_name'], tracking_data.minird_bigcommerce_all_orders);
+
+                        tracking_data.minird_bigcommerce_last_order.error = true;
+                        tracking_data.minird_bigcommerce_last_order.error_message = "Something went wrong!";
+                        tracking_data.minird_bigcommerce_last_order.platform_query_end = Date.now();
+                        thrive.gte(tracking_data.minird_bigcommerce_last_order['gte_class_name'], tracking_data.minird_bigcommerce_last_order);
+                        
+                        resolve();
+                    }
+                }
+            });
+            var gather_req_url = "#{host_url}/gather?sh=#{@store.store_hash}&at=#{@store.access_token}&cid=" + user_id;
+            gather_req.open("GET", gather_req_url);
+            gather_req.send();
+        }
+    });
+};
+
+var send_gte_promises = function () {
+    return new Promise((resolve, reject) => {
+
+        thrive.gte_send();
+        resolve();
+
     });
 };
 
 new Promise((resolve, reject) => {
-    console.log('A) initial promise');
+    // Kickoff for promise train.
     resolve();
 })
 .then(() => cart_promise())
 .then(() => customer_promise())
-.then((user_id) => gather_promise(user_id));
+.then((user_id) => gather_promise(user_id))
+.then(() => send_gte_promises());
 
         bcj
     end
